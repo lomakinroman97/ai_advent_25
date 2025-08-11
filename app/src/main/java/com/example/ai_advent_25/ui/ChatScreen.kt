@@ -27,6 +27,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 
 @Composable
 fun ChatScreen(
@@ -201,12 +214,48 @@ fun ChatScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
+                                // Основной ответ
                                 Text(
                                     text = message.content,
                                     style = MaterialTheme.typography.bodyMedium,
                                     textAlign = TextAlign.Start,
                                     color = Color(0xFF333333)
                                 )
+                                
+                                // Выпадающие компоненты для метаданных и JSON
+                                if (!message.isUser && (message.metadata != null || message.originalJson != null)) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    // Компонент для метаданных
+                                    message.metadata?.let { metadata ->
+                                        val metadataText = buildString {
+                                            metadata.confidence?.let { appendLine("Уверенность: ${(it * 100).toInt()}%") }
+                                            metadata.category?.let { appendLine("Категория: $it") }
+                                            metadata.tags?.let { tags ->
+                                                if (tags.isNotEmpty()) {
+                                                    appendLine("Теги: ${tags.joinToString(", ")}")
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (metadataText.isNotBlank()) {
+                                            ExpandableContent(
+                                                title = "meta",
+                                                content = metadataText.trim(),
+                                                modifier = Modifier.padding(bottom = 4.dp)
+                                            )
+                                        }
+                                    }
+                                    
+                                    // Компонент для JSON
+                                    message.originalJson?.let { json ->
+                                        ExpandableContent(
+                                            title = "json",
+                                            content = json,
+                                            modifier = Modifier.padding(bottom = 4.dp)
+                                        )
+                                    }
+                                }
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
@@ -245,37 +294,33 @@ fun ChatScreen(
                 }
             }
 
-            // Input
-            Card(
+            // Input - в стиле Telegram
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.9f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                shape = RoundedCornerShape(24.dp)
+                    .imePadding(), // Автоматический отступ от клавиатуры
+                color = Color.White.copy(alpha = 0.95f),
+                shadowElevation = 4.dp,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.Bottom
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Input Field
+                    // Input Field - компактное поле в стиле Telegram
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .height(40.dp)
                             .background(
-                                color = Color.Transparent,
+                                color = Color(0xFFF5F5F5),
                                 shape = RoundedCornerShape(20.dp)
                             )
                             .border(
-                                width = 1.dp,
-                                color = if (messageText.isNotBlank()) 
-                                    Color(0xFFFF0000) 
-                                else 
-                                    Color(0xFFCCCCCC),
+                                width = 0.5.dp,
+                                color = Color(0xFFE0E0E0),
                                 shape = RoundedCornerShape(20.dp)
                             )
                     ) {
@@ -283,12 +328,12 @@ fun ChatScreen(
                             value = messageText,
                             onValueChange = { messageText = it },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             singleLine = true,
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 color = Color(0xFF333333),
-                                fontSize = 16.sp
+                                fontSize = 15.sp
                             ),
                             cursorBrush = SolidColor(
                                 Color(0xFFFF0000)
@@ -297,38 +342,40 @@ fun ChatScreen(
                         
                         if (messageText.isEmpty()) {
                             Text(
-                                text = "Напишите сообщение...",
-                                color = Color(0xFF666666),
-                                modifier = Modifier.padding(16.dp),
-                                fontSize = 16.sp
+                                text = "Сообщение",
+                                color = Color(0xFF999999),
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(start = 16.dp),
+                                fontSize = 15.sp
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                    // Send Button
+                    // Send Button - компактная кнопка
                     IconButton(
                         onClick = {
                             viewModel.sendMessage(messageText)
                             messageText = ""
                         },
                         enabled = messageText.isNotBlank() && !uiState.isLoading,
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(40.dp),
                         colors = IconButtonDefaults.iconButtonColors(
                             containerColor = if (messageText.isNotBlank() && !uiState.isLoading) 
                                 Color(0xFFFF0000) 
                             else 
-                                Color(0xFFCCCCCC),
+                                Color(0xFFE0E0E0),
                             contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFCCCCCC),
+                            disabledContainerColor = Color(0xFFE0E0E0),
                             disabledContentColor = Color(0xFF999999)
                         )
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Send message",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
