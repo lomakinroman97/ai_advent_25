@@ -40,6 +40,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import com.example.ai_advent_25.data.TravelRecommendation
+import com.example.ai_advent_25.data.CityRecommendation
+import com.example.ai_advent_25.data.QuestionData
 
 @Composable
 fun ChatScreen(
@@ -47,7 +50,7 @@ fun ChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
-    var messageText by remember { mutableStateOf("") }
+    var messageText by remember { mutableStateOf("В путь!") }
     var showApiKeyDialog by remember { mutableStateOf(!uiState.apiKeySet) }
     var apiKeyText by remember { mutableStateOf("") }
 
@@ -214,47 +217,26 @@ fun ChatScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                // Основной ответ
-                                Text(
-                                    text = message.content,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Start,
-                                    color = Color(0xFF333333)
-                                )
+                                // Основной ответ - показываем только если нет структурированных рекомендаций
+                                if (message.structuredResponse == null) {
+                                    Text(
+                                        text = message.content,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = TextAlign.Start,
+                                        color = Color(0xFF333333)
+                                    )
+                                }
                                 
-                                // Выпадающие компоненты для метаданных и JSON
-                                if (!message.isUser && (message.metadata != null || message.originalJson != null)) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    
-                                    // Компонент для метаданных
-                                    message.metadata?.let { metadata ->
-                                        val metadataText = buildString {
-                                            metadata.confidence?.let { appendLine("Уверенность: ${(it * 100).toInt()}%") }
-                                            metadata.category?.let { appendLine("Категория: $it") }
-                                            metadata.tags?.let { tags ->
-                                                if (tags.isNotEmpty()) {
-                                                    appendLine("Теги: ${tags.joinToString(", ")}")
-                                                }
-                                            }
-                                        }
-                                        
-                                        if (metadataText.isNotBlank()) {
-                                            ExpandableContent(
-                                                title = "meta",
-                                                content = metadataText.trim(),
-                                                modifier = Modifier.padding(bottom = 4.dp)
-                                            )
-                                        }
-                                    }
-                                    
-                                    // Компонент для JSON
-                                    message.originalJson?.let { json ->
-                                        ExpandableContent(
-                                            title = "json",
-                                            content = json,
-                                            modifier = Modifier.padding(bottom = 4.dp)
-                                        )
-                                    }
+                                // Отображение структурированных рекомендаций
+                                message.structuredResponse?.let { recommendation ->
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    TravelRecommendationCard(recommendation = recommendation)
+                                }
+                                
+                                // Отображение данных о вопросе
+                                message.questionData?.let { questionData ->
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    QuestionDataCard(questionData = questionData)
                                 }
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -280,13 +262,26 @@ fun ChatScreen(
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Box(
+                            Column(
                                 modifier = Modifier.padding(20.dp),
-                                contentAlignment = Alignment.Center
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 CircularProgressIndicator(
                                     color = Color(0xFFFF0000),
                                     strokeWidth = 3.dp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "AI-агент анализирует ваши предпочтения...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF666666),
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "Это может занять несколько секунд",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF999999),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -342,7 +337,7 @@ fun ChatScreen(
                         
                         if (messageText.isEmpty()) {
                             Text(
-                                text = "Сообщение",
+                                text = "В путь!",
                                 color = Color(0xFF999999),
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
@@ -394,32 +389,78 @@ fun ChatScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Error",
-                        tint = Color(0xFFFF0000),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = uiState.error!!,
-                        color = Color(0xFFCC0000),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(
-                        onClick = { viewModel.clearError() },
-                        modifier = Modifier.size(32.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color(0xFFCC0000)
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Error",
+                            tint = Color(0xFFFF0000),
+                            modifier = Modifier.size(24.dp)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = uiState.error!!,
+                            color = Color(0xFFCC0000),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(
+                            onClick = { viewModel.clearError() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFFCC0000)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = { viewModel.retryLastMessage() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF0000),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Retry",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Повторить")
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        Button(
+                            onClick = { viewModel.clearChat() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF666666),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Clear",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Начать заново")
+                        }
                     }
                 }
             }
@@ -486,8 +527,242 @@ fun ChatScreen(
 }
 
 @Composable
+fun QuestionDataCard(questionData: QuestionData) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFE3F2FD)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Заголовок вопроса
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Text(
+                    text = "❓",
+                    fontSize = 20.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Вопрос ${questionData.questionNumber} из 4",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF1976D2)
+                )
+            }
+            
+            // Прогресс-бар
+            LinearProgressIndicator(
+                progress = { (questionData.questionNumber - 1) / 3f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = Color(0xFF1976D2),
+                trackColor = Color(0xFFE0E0E0)
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Собранная информация
+            if (questionData.collectedInfo.isNotEmpty()) {
+                Text(
+                    text = "📋 Уже известно:",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF666666),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                questionData.collectedInfo.forEach { info ->
+                    Text(
+                        text = "• $info",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF666666),
+                        modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            
+            // Следующий вопрос
+            Text(
+                text = questionData.nextQuestion,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Medium
+                ),
+                color = Color(0xFF333333),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun formatTimestamp(timestamp: Long): String {
     val date = java.util.Date(timestamp)
     val format = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
     return format.format(date)
+}
+
+@Composable
+fun TravelRecommendationCard(recommendation: TravelRecommendation) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFE8F5E8)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Заголовок
+            Text(
+                text = "🎯 Рекомендации для путешествия",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color(0xFF2E7D32),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            // Рекомендуемые города
+            recommendation.recommendations.forEach { city ->
+                CityRecommendationItem(city = city)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            
+            // Общий бюджет
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF3E5F5)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "💰",
+                        fontSize = 20.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Общий бюджет: ${recommendation.totalBudget}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color(0xFF7B1FA2)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CityRecommendationItem(city: CityRecommendation) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            // Название города
+            Text(
+                text = "🏙️ ${city.city}",
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color(0xFF1976D2),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            // Описание
+            Text(
+                text = city.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF333333),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            // Достопримечательности
+            Text(
+                text = "🎯 Достопримечательности:",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color(0xFF666666),
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            city.attractions.forEach { attraction ->
+                Text(
+                    text = "• $attraction",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF666666),
+                    modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Стоимости
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                CostItem("💰", "Общая стоимость", city.costs)
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Время
+            Text(
+                text = "⏰ ${city.bestTime}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF666666)
+            )
+        }
+    }
+}
+
+@Composable
+fun CostItem(icon: String, label: String, cost: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = icon,
+            fontSize = 16.sp
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFF666666),
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = cost,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = Color(0xFF1976D2),
+            textAlign = TextAlign.Center
+        )
+    }
 }

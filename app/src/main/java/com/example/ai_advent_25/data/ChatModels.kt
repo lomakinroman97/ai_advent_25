@@ -43,18 +43,48 @@ data class ChatUiMessage(
     val content: String,
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
-    val metadata: ResponseMetadata? = null,
-    val originalJson: String? = null
+    val structuredResponse: TravelRecommendation? = null,
+    val questionData: QuestionData? = null
 )
 
-// Модели для структурированного ответа
-data class StructuredResponse(
-    val content: String,
-    val metadata: ResponseMetadata? = null
+// Модели для структурированного ответа от AI-агента согласно системному промпту
+sealed class AgentResponse {
+    data class Question(
+        val type: String = "question",
+        val questionNumber: Int,
+        val nextQuestion: String,
+        val collectedInfo: List<String>,
+        val remainingQuestions: Int
+    ) : AgentResponse()
+    
+    data class Recommendations(
+        val type: String = "recommendations",
+        val summary: String,
+        val recommendations: List<CityRecommendation>,
+        val totalBudget: String
+    ) : AgentResponse()
+}
+
+// Модель для отображения вопроса в UI
+data class QuestionData(
+    val questionNumber: Int,
+    val nextQuestion: String,
+    val collectedInfo: List<String>,
+    val remainingQuestions: Int
 )
 
-data class ResponseMetadata(
-    val confidence: Double? = null,
-    val category: String? = null,
-    val tags: List<String>? = null
+// Модель для рекомендаций по городам
+data class CityRecommendation(
+    val city: String,
+    val description: String,
+    val attractions: List<String>,
+    val costs: String,
+    val bestTime: String
+)
+
+// Модель для итоговых рекомендаций по путешествию
+data class TravelRecommendation(
+    val summary: String,
+    val recommendations: List<CityRecommendation>,
+    val totalBudget: String
 )
