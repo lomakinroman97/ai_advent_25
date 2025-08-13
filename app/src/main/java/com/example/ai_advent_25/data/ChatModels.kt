@@ -2,6 +2,12 @@ package com.example.ai_advent_25.data
 
 import com.google.gson.annotations.SerializedName
 
+// Enum для типов агентов
+enum class AgentType {
+    TRAVEL_ASSISTANT,  // TravelAssistAgent
+    EXPERT_REVIEWER    // ExpertReviewerAgent
+}
+
 data class ChatMessage(
     val role: String,
     val text: String,
@@ -44,7 +50,9 @@ data class ChatUiMessage(
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
     val structuredResponse: TravelRecommendation? = null,
-    val questionData: QuestionData? = null
+    val questionData: QuestionData? = null,
+    val expertOpinion: ExpertOpinion? = null,
+    val agentType: AgentType? = null  // Тип агента, который отправил сообщение
 )
 
 // Модели для структурированного ответа от AI-агента согласно системному промпту
@@ -87,4 +95,15 @@ data class TravelRecommendation(
     val summary: String,
     val recommendations: List<CityRecommendation>,
     val totalBudget: String
+)
+
+// Модель для экспертного мнения Агента №2
+data class ExpertOpinion(
+    val analysis: String,
+    val validation: String,
+    val additionalRecommendations: List<String>,
+    val travelTips: List<String>,
+    val budgetAnalysis: String,
+    val timingAnalysis: String,
+    val riskAssessment: String
 )

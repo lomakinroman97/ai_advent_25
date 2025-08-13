@@ -2,7 +2,6 @@ package com.example.ai_advent_25.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -40,9 +39,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.animation.core.*
+import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.ui.graphics.graphicsLayer
 import com.example.ai_advent_25.data.TravelRecommendation
 import com.example.ai_advent_25.data.CityRecommendation
 import com.example.ai_advent_25.data.QuestionData
+import com.example.ai_advent_25.data.ExpertOpinion
+import com.example.ai_advent_25.data.AgentType
 
 @Composable
 fun ChatScreen(
@@ -120,7 +128,7 @@ fun ChatScreen(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "YandexGPT",
+                                text = "Yandex GPT-lite",
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
@@ -204,8 +212,15 @@ fun ChatScreen(
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
+                                // Определяем подпись в зависимости от типа агента
+                                val agentLabel = when (message.agentType) {
+                                    AgentType.TRAVEL_ASSISTANT -> "Ассистент"
+                                    AgentType.EXPERT_REVIEWER -> "Эксперт"
+                                    null -> "YandexGPT" // fallback для старых сообщений
+                                }
+                                
                                 Text(
-                                    text = if (message.isUser) "Вы" else "YandexGPT",
+                                    text = if (message.isUser) "Вы" else agentLabel,
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold
                                     ),
@@ -237,6 +252,12 @@ fun ChatScreen(
                                 message.questionData?.let { questionData ->
                                     Spacer(modifier = Modifier.height(12.dp))
                                     QuestionDataCard(questionData = questionData)
+                                }
+                                
+                                // Отображение экспертного мнения
+                                message.expertOpinion?.let { expertOpinion ->
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    ExpertOpinionCard(expertOpinion = expertOpinion)
                                 }
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -271,8 +292,16 @@ fun ChatScreen(
                                     strokeWidth = 3.dp
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
+                                
+                                // Текст загрузки в зависимости от текущего агента
+                                val loadingText = when (uiState.currentAgent) {
+                                    AgentType.TRAVEL_ASSISTANT -> "Ассистент анализирует ваши предпочтения..."
+                                    AgentType.EXPERT_REVIEWER -> "Эксперт анализирует работу вашего ассистента"
+                                    null -> "AI-агент анализирует ваши предпочтения..."
+                                }
+                                
                                 Text(
-                                    text = "AI-агент анализирует ваши предпочтения...",
+                                    text = loadingText,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color(0xFF666666),
                                     textAlign = TextAlign.Center
@@ -289,11 +318,41 @@ fun ChatScreen(
                 }
             }
 
-            // Input - в стиле Telegram
+            AnimatedVisibility(
+                visible = uiState.messages.any { it.structuredResponse != null } && !uiState.expertButtonClicked,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(600, easing = EaseOut)
+                ) + fadeIn(
+                    animationSpec = tween(600)
+                ) + scaleIn(
+                    initialScale = 0.95f,
+                    animationSpec = tween(600, easing = EaseOut)
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(400, easing = EaseIn)
+                ) + fadeOut(
+                    animationSpec = tween(400)
+                ) + scaleOut(
+                    targetScale = 0.95f,
+                    animationSpec = tween(400, easing = EaseIn)
+                ),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                ExpertConnectButton(
+                    onClick = { recommendation ->
+                        viewModel.getExpertOpinion(recommendation)
+                    },
+                    recommendation = uiState.messages.lastOrNull { it.structuredResponse != null }?.structuredResponse,
+                    isLoading = uiState.isLoading
+                )
+            }
+
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding(), // Автоматический отступ от клавиатуры
+                    .imePadding(),
                 color = Color.White.copy(alpha = 0.95f),
                 shadowElevation = 4.dp,
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
@@ -304,7 +363,6 @@ fun ChatScreen(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Input Field - компактное поле в стиле Telegram
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -349,7 +407,6 @@ fun ChatScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Send Button - компактная кнопка
                     IconButton(
                         onClick = {
                             viewModel.sendMessage(messageText)
@@ -403,7 +460,7 @@ fun ChatScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = uiState.error!!,
+                            text = uiState.error ?: "",
                             color = Color(0xFFCC0000),
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -764,5 +821,237 @@ fun CostItem(icon: String, label: String, cost: String) {
             color = Color(0xFF1976D2),
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+fun ExpertOpinionCard(expertOpinion: ExpertOpinion) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF3E5F5)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Заголовок
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Text(
+                    text = "🔍",
+                    fontSize = 24.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Экспертное мнение",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF7B1FA2)
+                )
+            }
+            
+            // Анализ рекомендаций
+            ExpertOpinionSection(
+                title = "📊 Анализ рекомендаций",
+                content = expertOpinion.analysis,
+                color = Color(0xFF1976D2)
+            )
+            
+            // Валидация
+            ExpertOpinionSection(
+                title = "✅ Оценка валидности",
+                content = expertOpinion.validation,
+                color = Color(0xFF4CAF50)
+            )
+            
+            // Дополнительные рекомендации
+            if (expertOpinion.additionalRecommendations.isNotEmpty()) {
+                ExpertOpinionSection(
+                    title = "💡 Дополнительные рекомендации",
+                    content = expertOpinion.additionalRecommendations.joinToString("\n• ", "• "),
+                    color = Color(0xFFFF9800)
+                )
+            }
+            
+            // Советы по путешествию
+            if (expertOpinion.travelTips.isNotEmpty()) {
+                ExpertOpinionSection(
+                    title = "🎯 Советы по путешествию",
+                    content = expertOpinion.travelTips.joinToString("\n• ", "• "),
+                    color = Color(0xFFE91E63)
+                )
+            }
+            
+            // Анализ бюджета
+            ExpertOpinionSection(
+                title = "💰 Анализ бюджета",
+                content = expertOpinion.budgetAnalysis,
+                color = Color(0xFF795548)
+            )
+            
+            // Анализ времени
+            ExpertOpinionSection(
+                title = "⏰ Анализ времени",
+                content = expertOpinion.timingAnalysis,
+                color = Color(0xFF607D8B)
+            )
+            
+            // Оценка рисков
+            ExpertOpinionSection(
+                title = "⚠️ Оценка рисков",
+                content = expertOpinion.riskAssessment,
+                color = Color(0xFFFF5722)
+            )
+        }
+    }
+}
+
+@Composable
+fun ExpertOpinionSection(title: String, content: String, color: Color) {
+    Column(
+        modifier = Modifier.padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = color,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        Text(
+            text = content,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF333333)
+        )
+    }
+}
+
+@Composable
+fun ExpertConnectButton(
+    onClick: (TravelRecommendation) -> Unit,
+    recommendation: TravelRecommendation?,
+    isLoading: Boolean
+) {
+    if (recommendation == null) return
+    
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.02f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                if (!isLoading) {
+                    onClick(recommendation)
+                }
+            }
+            .graphicsLayer {
+                scaleX = if (isPressed) 0.95f else scale
+                scaleY = if (isPressed) 0.95f else scale
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(
+                    color = Color(0xFFF8F9FA),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFE9ECEF),
+                    shape = RoundedCornerShape(16.dp)
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Иконка эксперта
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                color = Color(0xFF6C757D),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ThumbUp,
+                            contentDescription = "Expert",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Column {
+                        Text(
+                            text = "Подключить эксперта",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = Color(0xFF495057)
+                        )
+                        Text(
+                            text = "Получите профессиональную оценку",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF6C757D)
+                        )
+                    }
+                }
+                
+                // Иконка стрелки
+                if (!isLoading) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Connect",
+                        tint = Color(0xFF6C757D),
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        color = Color(0xFF6C757D),
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
     }
 }
