@@ -69,11 +69,19 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     
+    // JSON support
+    implementation("org.json:json:20231013")
+    
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    
     // Coroutines
     implementation(libs.coroutines.android)
     implementation(libs.coroutines.core)
     
     testImplementation(libs.junit)
+    testImplementation("org.mockito:mockito-core:5.3.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

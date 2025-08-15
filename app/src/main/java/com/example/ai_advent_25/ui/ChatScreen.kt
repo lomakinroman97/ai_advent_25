@@ -51,6 +51,13 @@ import com.example.ai_advent_25.data.CityRecommendation
 import com.example.ai_advent_25.data.QuestionData
 import com.example.ai_advent_25.data.ExpertOpinion
 import com.example.ai_advent_25.data.AgentType
+import com.example.ai_advent_25.data.GeneratedImage
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import java.io.File
 
 @Composable
 fun ChatScreen(
@@ -61,6 +68,12 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("В путь!") }
     var showApiKeyDialog by remember { mutableStateOf(!uiState.apiKeySet) }
     var apiKeyText by remember { mutableStateOf("") }
+
+    // Инициализируем генератор изображений при первом запуске
+    val context = LocalContext.current
+    LaunchedEffect(context) {
+        viewModel.initializeImageGenerator(context)
+    }
 
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
@@ -216,7 +229,8 @@ fun ChatScreen(
                                 val agentLabel = when (message.agentType) {
                                     AgentType.TRAVEL_ASSISTANT -> "Ассистент"
                                     AgentType.EXPERT_REVIEWER -> "Эксперт"
-                                    null -> "YandexGPT" // fallback для старых сообщений
+                                    AgentType.IMAGE_GENERATOR -> "Kandinsky"
+                                    else -> "YandexGpt"
                                 }
                                 
                                 Text(
@@ -260,6 +274,12 @@ fun ChatScreen(
                                     ExpertOpinionCard(expertOpinion = expertOpinion)
                                 }
                                 
+                                // Отображение сгенерированного изображения
+                                message.generatedImage?.let { generatedImage ->
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    GeneratedImageCard(generatedImage = generatedImage)
+                                }
+                                
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
                                 Text(
@@ -297,6 +317,7 @@ fun ChatScreen(
                                 val loadingText = when (uiState.currentAgent) {
                                     AgentType.TRAVEL_ASSISTANT -> "Ассистент анализирует ваши предпочтения..."
                                     AgentType.EXPERT_REVIEWER -> "Эксперт анализирует работу вашего ассистента"
+                                    AgentType.IMAGE_GENERATOR -> "ИИ создает изображение вашего города..."
                                     null -> "AI-агент анализирует ваши предпочтения..."
                                 }
                                 
@@ -318,6 +339,7 @@ fun ChatScreen(
                 }
             }
 
+            // Кнопка "Подключить эксперта"
             AnimatedVisibility(
                 visible = uiState.messages.any { it.structuredResponse != null } && !uiState.expertButtonClicked,
                 enter = slideInVertically(
@@ -345,6 +367,44 @@ fun ChatScreen(
                         viewModel.getExpertOpinion(recommendation)
                     },
                     recommendation = uiState.messages.lastOrNull { it.structuredResponse != null }?.structuredResponse,
+                    isLoading = uiState.isLoading
+                )
+            }
+
+            // Кнопка "Ваш город глазами ИИ"
+            AnimatedVisibility(
+                visible = uiState.messages.any { it.expertOpinion != null } && !uiState.imageGenerationRequested,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(600, easing = EaseOut)
+                ) + fadeIn(
+                    animationSpec = tween(600)
+                ) + scaleIn(
+                    initialScale = 0.95f,
+                    animationSpec = tween(600, easing = EaseOut)
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(400, easing = EaseIn)
+                ) + fadeOut(
+                    animationSpec = tween(400)
+                ) + scaleOut(
+                    targetScale = 0.95f,
+                    animationSpec = tween(400, easing = EaseIn)
+                ),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                GenerateImageButton(
+                    onClick = { cityRecommendation ->
+                        viewModel.generateCityImage(cityRecommendation)
+                    },
+                    cityRecommendation = run {
+                        // Ищем последнее сообщение с рекомендациями (не с экспертным мнением)
+                        val lastRecommendationMessage = uiState.messages.lastOrNull { 
+                            it.structuredResponse != null && it.expertOpinion == null 
+                        }
+                        lastRecommendationMessage?.structuredResponse?.recommendations?.firstOrNull()
+                    },
                     isLoading = uiState.isLoading
                 )
             }
@@ -1047,6 +1107,233 @@ fun ExpertConnectButton(
                 } else {
                     CircularProgressIndicator(
                         color = Color(0xFF6C757D),
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GeneratedImageCard(generatedImage: GeneratedImage) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFE8F4FD)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Заголовок
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Text(
+                    text = "🎨",
+                    fontSize = 24.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Ваш город глазами ИИ",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color(0xFF1976D2)
+                )
+            }
+            
+            // Изображение
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF5F5F5)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Загружаем реальное изображение
+                    val context = LocalContext.current
+                    val imageFile = File(generatedImage.imageUrl)
+                    
+                    if (imageFile.exists()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(imageFile)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Изображение города ${generatedImage.cityName}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            placeholder = null,
+                            error = null
+                        )
+                    } else {
+                        // Fallback если файл не найден
+                        Text(
+                            text = "🖼️\nИзображение города\n${generatedImage.cityName}\n\nФайл не найден: ${generatedImage.imageUrl}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF666666),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Информация о промпте
+            Text(
+                text = "📝 Промпт для генерации:",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color(0xFF666666),
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = generatedImage.prompt,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF333333),
+                modifier = Modifier.padding(start = 8.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Время генерации
+            Text(
+                text = "⏰ Сгенерировано: ${formatTimestamp(generatedImage.timestamp)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF999999)
+            )
+        }
+    }
+}
+
+@Composable
+fun GenerateImageButton(
+    onClick: (CityRecommendation) -> Unit,
+    cityRecommendation: CityRecommendation?,
+    isLoading: Boolean
+) {
+    if (cityRecommendation == null) return
+    
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.02f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                if (!isLoading) {
+                    onClick(cityRecommendation)
+                }
+            }
+            .graphicsLayer {
+                scaleX = if (isPressed) 0.95f else scale
+                scaleY = if (isPressed) 0.95f else scale
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(
+                    color = Color(0xFFE3F2FD),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFBBDEFB),
+                    shape = RoundedCornerShape(16.dp)
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Иконка генерации изображений
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                color = Color(0xFF1976D2),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🎨",
+                            fontSize = 16.sp
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Column {
+                        Text(
+                            text = "Ваш город глазами ИИ",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = Color(0xFF1976D2)
+                        )
+                        Text(
+                            text = "Создайте изображение с помощью ИИ",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64B5F6)
+                        )
+                    }
+                }
+                
+                // Иконка стрелки или индикатор загрузки
+                if (!isLoading) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Generate Image",
+                        tint = Color(0xFF1976D2),
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        color = Color(0xFF1976D2),
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(20.dp)
                     )

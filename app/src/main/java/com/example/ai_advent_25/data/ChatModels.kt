@@ -5,7 +5,8 @@ import com.google.gson.annotations.SerializedName
 // Enum для типов агентов
 enum class AgentType {
     TRAVEL_ASSISTANT,  // TravelAssistAgent
-    EXPERT_REVIEWER    // ExpertReviewerAgent
+    EXPERT_REVIEWER,   // ExpertReviewerAgent
+    IMAGE_GENERATOR    // GenerateImageAgent
 }
 
 data class ChatMessage(
@@ -52,6 +53,7 @@ data class ChatUiMessage(
     val structuredResponse: TravelRecommendation? = null,
     val questionData: QuestionData? = null,
     val expertOpinion: ExpertOpinion? = null,
+    val generatedImage: GeneratedImage? = null,
     val agentType: AgentType? = null  // Тип агента, который отправил сообщение
 )
 
@@ -106,4 +108,12 @@ data class ExpertOpinion(
     val budgetAnalysis: String,
     val timingAnalysis: String,
     val riskAssessment: String
+)
+
+// Модель для сгенерированного изображения от Агента №3
+data class GeneratedImage(
+    val imageUrl: String,
+    val cityName: String,
+    val prompt: String,
+    val timestamp: Long = System.currentTimeMillis()
 )

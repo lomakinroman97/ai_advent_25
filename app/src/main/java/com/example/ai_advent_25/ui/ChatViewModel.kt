@@ -1,11 +1,14 @@
 package com.example.ai_advent_25.ui
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ai_advent_25.data.*
 import com.example.ai_advent_25.data.agents.factory.AgentRepositoryFactory
 import com.example.ai_advent_25.data.agents.ExpertReviewerAgentRepository
 import com.example.ai_advent_25.data.agents.TravelAssistAgentRepository
+import com.example.ai_advent_25.data.agents.GenerateImageAgentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +22,7 @@ class ChatViewModel : ViewModel() {
 
     private var travelAssistAgentRepository: TravelAssistAgentRepository? = null
     private var expertReviewerAgentRepository: ExpertReviewerAgentRepository? = null
+    private var generateImageAgentRepository: GenerateImageAgentRepository? = null
 
     init {
         _uiState.update { 
@@ -38,6 +42,32 @@ class ChatViewModel : ViewModel() {
         travelAssistAgentRepository = AgentRepositoryFactory.createTravelAssistAgentRepository(apiKey)
         expertReviewerAgentRepository = AgentRepositoryFactory.createExpertReviewerAgentRepository(apiKey)
         _uiState.update { it.copy(apiKeySet = true) }
+    }
+
+        fun initializeImageGenerator(context: Context) {
+        Log.d("mylog", "ChatViewModel: Инициализируем генератор изображений")
+        generateImageAgentRepository = AgentRepositoryFactory.createGenerateImageAgentRepository(context)
+        Log.d("mylog", "ChatViewModel: GenerateImageAgentRepository создан")
+
+        // Инициализируем MCP клиент
+        viewModelScope.launch {
+            try {
+                Log.d("mylog", "ChatViewModel: Начинаем инициализацию MCP клиента")
+                val kandinskyService = generateImageAgentRepository?.kandinskyService
+                Log.d("mylog", "ChatViewModel: KandinskyService получен: ${kandinskyService != null}")
+                
+                kandinskyService?.initializeMCP()?.fold(
+                    onSuccess = {
+                        Log.d("mylog", "ChatViewModel: MCP клиент успешно инициализирован")
+                    },
+                    onFailure = { exception ->
+                        Log.e("mylog", "ChatViewModel: Ошибка инициализации MCP клиента", exception)
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e("mylog", "ChatViewModel: Ошибка при инициализации MCP", e)
+            }
+        }
     }
 
     fun sendMessage(message: String) {
@@ -125,7 +155,8 @@ class ChatViewModel : ViewModel() {
                         agentType = AgentType.TRAVEL_ASSISTANT
                     )
                 ),
-                expertButtonClicked = false
+                expertButtonClicked = false,
+                imageGenerationRequested = false
             )
         }
     }
@@ -154,7 +185,7 @@ class ChatViewModel : ViewModel() {
                                     agentType = AgentType.EXPERT_REVIEWER,
                                     expertOpinion = result.expertOpinion
                                 )
-                                _uiState.update { it.copy(messages = it.messages + assistantMessage, isLoading = false, currentAgent = null) }
+                                _uiState.update { it.copy(messages = it.messages + assistantMessage, isLoading = false, currentAgent = null, expertButtonClicked = true) }
                             }
                             else -> _uiState.update { 
                                 it.copy(error = "Неожиданный ответ от эксперта", isLoading = false, currentAgent = null) 
@@ -178,6 +209,74 @@ class ChatViewModel : ViewModel() {
             }
         }
     }
+
+    fun generateCityImage(cityRecommendation: CityRecommendation) {
+        Log.d("mylog", "ChatViewModel: Генерируем изображение для города: ${cityRecommendation.city}")
+        Log.d("mylog", "ChatViewModel: Описание города: ${cityRecommendation.description}")
+        
+        if (generateImageAgentRepository == null) {
+            Log.e("mylog", "ChatViewModel: Генератор изображений не инициализирован")
+            _uiState.update { it.copy(error = "Генератор изображений не инициализирован") }
+            return
+        }
+
+        Log.d("mylog", "ChatViewModel: Обновляем UI состояние - загрузка")
+        _uiState.update { it.copy(isLoading = true, currentAgent = AgentType.IMAGE_GENERATOR, imageGenerationRequested = true) }
+
+        viewModelScope.launch {
+            try {
+                Log.d("mylog", "ChatViewModel: Вызываем generateCityImage в репозитории")
+                generateImageAgentRepository?.generateCityImage(cityRecommendation)?.fold(
+                    onSuccess = { generatedImage ->
+                        Log.d("mylog", "ChatViewModel: Успешная генерация изображения: $generatedImage")
+                        val assistantMessage = ChatUiMessage(
+                            content = "Изображение города ${cityRecommendation.city} сгенерировано с помощью ИИ",
+                            isUser = false,
+                            agentType = AgentType.IMAGE_GENERATOR,
+                            generatedImage = generatedImage
+                        )
+                        Log.d("mylog", "ChatViewModel: Создано сообщение с изображением")
+                        _uiState.update { 
+                            it.copy(
+                                messages = it.messages + assistantMessage, 
+                                isLoading = false, 
+                                currentAgent = null
+                            ) 
+                        }
+                        Log.d("mylog", "ChatViewModel: UI состояние обновлено")
+                    },
+                    onFailure = { exception ->
+                        Log.e("mylog", "ChatViewModel: Ошибка при генерации изображения", exception)
+                        _uiState.update { 
+                            it.copy(
+                                error = "Ошибка при генерации изображения: ${exception.message}", 
+                                isLoading = false, 
+                                currentAgent = null
+                            ) 
+                        }
+                    }
+                ) ?: run {
+                    Log.e("mylog", "ChatViewModel: GenerateImageAgentRepository недоступен")
+                    _uiState.update { 
+                        it.copy(
+                            error = "GenerateImageAgentRepository недоступен", 
+                            isLoading = false, 
+                            currentAgent = null
+                        ) 
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("mylog", "ChatViewModel: Исключение при генерации изображения", e)
+                _uiState.update { 
+                    it.copy(
+                        error = e.message ?: "Неизвестная ошибка при генерации изображения", 
+                        isLoading = false, 
+                        currentAgent = null
+                    ) 
+                }
+            }
+        }
+    }
 }
 
 data class ChatUiState(
@@ -186,5 +285,6 @@ data class ChatUiState(
     val error: String? = null,
     val apiKeySet: Boolean = false,
     val currentAgent: AgentType? = null,  // Текущий активный агент для отображения правильного текста загрузки
-    val expertButtonClicked: Boolean = false  // Флаг, указывающий, что кнопка "Подключить эксперта" была нажата
+    val expertButtonClicked: Boolean = false,  // Флаг, указывающий, что кнопка "Подключить эксперта" была нажата
+    val imageGenerationRequested: Boolean = false  // Флаг, указывающий, что кнопка генерации изображения была нажата
 )
