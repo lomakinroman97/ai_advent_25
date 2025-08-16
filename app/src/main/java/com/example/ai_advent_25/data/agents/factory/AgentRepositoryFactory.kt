@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.ai_advent_25.data.agents.ExpertReviewerAgentRepository
 import com.example.ai_advent_25.data.agents.TravelAssistAgentRepository
 import com.example.ai_advent_25.data.agents.GenerateImageAgentRepository
+import com.example.ai_advent_25.data.agents.KandinskyReportCreatorAgentRepository
 import com.example.ai_advent_25.data.network.KandinskyService
 import com.example.ai_advent_25.data.network.NetworkModule
 import com.example.ai_advent_25.data.network.NetworkProvider
@@ -30,5 +31,12 @@ object AgentRepositoryFactory {
         kandinskySecretKey: String = KandinskyService.KANDINSKY_SECRET_KEY
     ): GenerateImageAgentRepository {
         return GenerateImageAgentRepository(context, kandinskyApiKey, kandinskySecretKey)
+    }
+    
+    fun createKandinskyReportCreatorAgentRepository(
+        apiKey: String,
+        networkProvider: NetworkProvider = NetworkModule
+    ): KandinskyReportCreatorAgentRepository {
+        return KandinskyReportCreatorAgentRepository(apiKey, networkProvider)
     }
 }

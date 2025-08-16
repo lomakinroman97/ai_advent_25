@@ -1,6 +1,11 @@
 package com.example.ai_advent_25.data
 
+import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonParser
+import com.google.gson.JsonSyntaxException
+import com.example.ai_advent_25.data.CityStat
+import com.example.ai_advent_25.data.SimpleKandinskyReport
 
 object JsonResponseParser {
 
@@ -77,6 +82,74 @@ object JsonResponseParser {
         }
         
         return null
+    }
+
+    /**
+     * Парсит структурированный отчет о работе Kandinsky
+     */
+    fun parseKandinskyReport(jsonResponse: String): Result<KandinskyStructuredReport> {
+        return try {
+            val report = Gson().fromJson(jsonResponse, KandinskyStructuredReport::class.java)
+            Result.success(report)
+        } catch (e: Exception) {
+            Log.e("JsonResponseParser", "Ошибка парсинга отчета Kandinsky", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Парсит упрощенный отчет о работе Kandinsky от Агента №4
+     */
+    fun parseSimpleKandinskyReport(jsonResponse: String): Result<SimpleKandinskyReport> {
+        return try {
+            Log.d("JsonResponseParser", "Начинаем парсинг ответа от Агента №4")
+            Log.d("JsonResponseParser", "Длина ответа: ${jsonResponse.length}")
+            Log.d("JsonResponseParser", "Первые 200 символов: ${jsonResponse.take(200)}")
+            
+            // Пытаемся найти JSON в ответе
+            val cleanResponse = findJsonObject(jsonResponse)
+            Log.d("JsonResponseParser", "Очищенный ответ: $cleanResponse")
+            
+            val report = Gson().fromJson(cleanResponse, SimpleKandinskyReport::class.java)
+            Log.d("JsonResponseParser", "Отчет успешно распарсен: $report")
+            Result.success(report)
+        } catch (e: Exception) {
+            Log.e("JsonResponseParser", "Ошибка парсинга упрощенного отчета Kandinsky", e)
+            Log.e("JsonResponseParser", "Полный ответ: $jsonResponse")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Создает простой отчет на основе базовых данных если JSON не найден
+     */
+    fun createFallbackReport(workDataList: List<KandinskyWorkData>): SimpleKandinskyReport {
+        val totalRequests = workDataList.size
+        val successfulRequests = workDataList.count { it.status == "success" }
+        val failedRequests = workDataList.count { it.status == "failed" }
+        
+        val cityStats = workDataList
+            .groupBy { it.cityName }
+            .mapValues { it.value.size }
+            .toList()
+            .sortedByDescending { it.second }
+            .take(5)
+            .map { CityStat(it.first, it.second) }
+        
+        val briefAnalysis = when {
+            workDataList.isEmpty() -> "Нет данных для анализа"
+            successfulRequests == totalRequests -> "Все запросы выполнены успешно"
+            failedRequests > successfulRequests -> "Много ошибок, требуется диагностика"
+            else -> "Система работает стабильно"
+        }
+        
+        return SimpleKandinskyReport(
+            totalRequests = totalRequests,
+            successfulRequests = successfulRequests,
+            failedRequests = failedRequests,
+            cityStats = cityStats,
+            briefAnalysis = briefAnalysis
+        )
     }
 }
 

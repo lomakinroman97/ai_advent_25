@@ -6,8 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.ai_advent_25.ui.ChatScreen
+import com.example.ai_advent_25.ui.SettingsScreen
 import com.example.ai_advent_25.ui.theme.AiAdvent25Theme
 
 class MainActivity : ComponentActivity() {
@@ -19,7 +21,28 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ChatScreen()
+                    var currentScreen by remember { mutableStateOf("chat") }
+                    var apiKey by remember { mutableStateOf("") }
+                    
+                    when (currentScreen) {
+                        "chat" -> {
+                            ChatScreen(
+                                apiKey = apiKey,
+                                onApiKeySet = { key -> 
+                                    apiKey = key 
+                                },
+                                onSettingsClick = { 
+                                    currentScreen = "settings" 
+                                }
+                            )
+                        }
+                        "settings" -> {
+                            SettingsScreen(
+                                apiKey = apiKey,
+                                onBackPressed = { currentScreen = "chat" }
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -1,7 +1,25 @@
 package com.example.ai_advent_25.ui
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -9,11 +27,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,52 +41,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.animation.core.*
-import androidx.compose.animation.*
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.ui.graphics.graphicsLayer
-import com.example.ai_advent_25.data.TravelRecommendation
-import com.example.ai_advent_25.data.CityRecommendation
-import com.example.ai_advent_25.data.QuestionData
-import com.example.ai_advent_25.data.ExpertOpinion
-import com.example.ai_advent_25.data.AgentType
-import com.example.ai_advent_25.data.GeneratedImage
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import com.example.ai_advent_25.data.AgentType
+import com.example.ai_advent_25.data.CityRecommendation
+import com.example.ai_advent_25.data.ExpertOpinion
+import com.example.ai_advent_25.data.GeneratedImage
+import com.example.ai_advent_25.data.QuestionData
+import com.example.ai_advent_25.data.TravelRecommendation
 import java.io.File
 
 @Composable
 fun ChatScreen(
-    viewModel: ChatViewModel = viewModel()
+    apiKey: String = "",
+    onApiKeySet: (String) -> Unit = {},
+    viewModel: ChatViewModel = viewModel(),
+    onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     var messageText by remember { mutableStateOf("В путь!") }
-    var showApiKeyDialog by remember { mutableStateOf(!uiState.apiKeySet) }
+    var showApiKeyDialog by remember { mutableStateOf(apiKey.isBlank()) }
     var apiKeyText by remember { mutableStateOf("") }
 
     // Инициализируем генератор изображений при первом запуске
@@ -149,17 +152,36 @@ fun ChatScreen(
                             )
                         }
                         
-                        IconButton(
-                            onClick = { viewModel.clearChat() },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Transparent,
-                                contentColor = Color.White
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Clear chat"
-                            )
+                            IconButton(
+                                onClick = onSettingsClick,
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings"
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            IconButton(
+                                onClick = { viewModel.clearChat() },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Clear chat"
+                                )
+                            }
                         }
                     }
                 }
@@ -625,6 +647,7 @@ fun ChatScreen(
                     onClick = {
                         if (apiKeyText.isNotBlank()) {
                             viewModel.setApiKey(apiKeyText)
+                            onApiKeySet(apiKeyText) // Передаем API ключ в MainActivity
                             showApiKeyDialog = false
                         }
                     },
