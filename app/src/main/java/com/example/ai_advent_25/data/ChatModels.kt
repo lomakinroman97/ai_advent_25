@@ -117,3 +117,115 @@ data class GeneratedImage(
     val prompt: String,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+// Модель для хранения минимальной информации о работе Kandinsky
+data class KandinskyWorkData(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val cityName: String,
+    val status: String = "pending", // pending, success, failed
+    val requestTimestamp: Long = System.currentTimeMillis(),
+    val errorMessage: String? = null
+)
+
+// Модель для отчета о работе Kandinsky
+data class KandinskyReport(
+    val totalRequests: Int,
+    val successfulGenerations: Int,
+    val failedGenerations: Int,
+    val averageProcessingTime: Long,
+    val mostRequestedCities: List<CityStats>,
+    val popularStyles: List<StyleStats>,
+    val errorAnalysis: List<ErrorInfo>,
+    val performanceMetrics: LegacyPerformanceMetrics,
+    val recommendations: List<String>,
+    val generatedAt: Long = System.currentTimeMillis()
+)
+
+data class CityStats(
+    val cityName: String,
+    val requestCount: Int,
+    val successRate: Double
+)
+
+data class StyleStats(
+    val style: String,
+    val usageCount: Int,
+    val averageProcessingTime: Long
+)
+
+data class ErrorStats(
+    val errorType: String,
+    val occurrenceCount: Int,
+    val lastOccurrence: Long
+)
+
+data class LegacyPerformanceMetrics(
+    val totalProcessingTime: Long,
+    val fastestGeneration: Long,
+    val slowestGeneration: Long,
+    val successRate: Double
+)
+
+// Структурированный отчет о работе Kandinsky (JSON ответ от Агента №4)
+data class KandinskyStructuredReport(
+    val summary: ReportSummary,
+    val statistics: ReportStatistics,
+    val performance: PerformanceMetrics,
+    val recommendations: List<String>,
+    val generatedAt: Long = System.currentTimeMillis()
+)
+
+data class ReportSummary(
+    val totalRequests: Int,
+    val successfulGenerations: Int,
+    val failedGenerations: Int,
+    val successRate: Double
+)
+
+data class ReportStatistics(
+    val averageProcessingTime: Long, // в миллисекундах
+    val fastestGeneration: Long, // в миллисекундах
+    val slowestGeneration: Long, // в миллисекундах
+    val mostRequestedCities: List<CityUsage>,
+    val popularStyles: List<StyleUsage>,
+    val errorAnalysis: List<ErrorInfo>
+)
+
+data class CityUsage(
+    val cityName: String,
+    val requestCount: Int,
+    val successRate: Double
+)
+
+data class StyleUsage(
+    val styleName: String,
+    val usageCount: Int,
+    val averageProcessingTime: Long
+)
+
+data class ErrorInfo(
+    val errorType: String,
+    val occurrenceCount: Int,
+    val description: String
+)
+
+// Новое PerformanceMetrics для структурированного отчета
+data class PerformanceMetrics(
+    val overallEfficiency: Double, // 0.0 - 1.0
+    val reliabilityScore: Double, // 0.0 - 1.0
+    val speedRating: String // "fast", "medium", "slow"
+)
+
+// Упрощенный отчет от Агента №4
+data class SimpleKandinskyReport(
+    val totalRequests: Int,
+    val successfulRequests: Int,
+    val failedRequests: Int,
+    val cityStats: List<CityStat>,
+    val briefAnalysis: String
+)
+
+data class CityStat(
+    val cityName: String,
+    val requestCount: Int
+)

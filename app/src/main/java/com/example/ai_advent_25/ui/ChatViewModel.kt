@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ai_advent_25.data.*
+import com.example.ai_advent_25.data.AppSettings
 import com.example.ai_advent_25.data.agents.factory.AgentRepositoryFactory
 import com.example.ai_advent_25.data.agents.ExpertReviewerAgentRepository
 import com.example.ai_advent_25.data.agents.TravelAssistAgentRepository
@@ -39,6 +40,10 @@ class ChatViewModel : ViewModel() {
     }
 
     fun setApiKey(apiKey: String) {
+        // Сохраняем API ключ в AppSettings
+        AppSettings.setApiKey(apiKey)
+        Log.d("ChatViewModel", "API ключ сохранен в AppSettings: '${if (apiKey.isBlank()) "пустой" else "установлен"}'")
+        
         travelAssistAgentRepository = AgentRepositoryFactory.createTravelAssistAgentRepository(apiKey)
         expertReviewerAgentRepository = AgentRepositoryFactory.createExpertReviewerAgentRepository(apiKey)
         _uiState.update { it.copy(apiKeySet = true) }
