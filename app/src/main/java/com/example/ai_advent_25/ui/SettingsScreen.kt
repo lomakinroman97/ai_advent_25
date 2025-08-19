@@ -29,7 +29,9 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.ai_advent_25.data.SimpleKandinskyReport
 import com.example.ai_advent_25.data.agents.RepositoryActivityStats
+import com.example.ai_advent_25.data.agents.TestResult
 import com.example.ai_advent_25.ui.ActivityGraphStep
+import com.example.ai_advent_25.ui.TestResultCard
 
 @Composable
 fun SettingsScreen(
@@ -158,6 +160,15 @@ fun SettingsScreen(
                         step = uiState.activityGraphStep
                     )
                 }
+                
+                item {
+                    MinimalReportButton(
+                        onClick = { viewModel.runAllTests() },
+                        isLoading = uiState.isRunningTests,
+                        title = "Run Tests",
+                        icon = Icons.Default.PlayArrow
+                    )
+                }
                 if (uiState.simpleReport != null) {
                     item { 
                         MinimalReportCard(report = uiState.simpleReport!!) 
@@ -170,6 +181,12 @@ fun SettingsScreen(
                             stats = uiState.repositoryStats!!,
                             imagePath = uiState.activityGraphPath
                         )
+                    }
+                }
+                
+                if (uiState.testResult != null) {
+                    item {
+                        TestResultCard(testResult = uiState.testResult!!)
                     }
                 }
             }
