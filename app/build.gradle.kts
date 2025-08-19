@@ -80,6 +80,9 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.coroutines.core)
     
+    // JUnit for runtime testing
+    implementation(libs.junit)
+    
     testImplementation(libs.junit)
     testImplementation("org.mockito:mockito-core:5.3.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")

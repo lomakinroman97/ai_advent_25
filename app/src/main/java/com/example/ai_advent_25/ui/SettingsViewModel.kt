@@ -10,6 +10,8 @@ import com.example.ai_advent_25.data.agents.KandinskyDataRepository
 import com.example.ai_advent_25.data.agents.KandinskyReportCreatorAgentRepository
 import com.example.ai_advent_25.data.agents.GithubActivityRepository
 import com.example.ai_advent_25.data.agents.RepositoryActivityStats
+import com.example.ai_advent_25.data.agents.TestRunnerAgentRepository
+import com.example.ai_advent_25.data.agents.TestResult
 import com.example.ai_advent_25.data.agents.factory.AgentRepositoryFactory
 import com.example.ai_advent_25.data.network.NetworkModule
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,7 @@ class SettingsViewModel : ViewModel() {
     private var kandinskyDataRepository: KandinskyDataRepository? = null
     private var kandinskyReportCreatorAgentRepository: KandinskyReportCreatorAgentRepository? = null
     private var githubActivityRepository: GithubActivityRepository? = null
+    private var testRunnerAgentRepository: TestRunnerAgentRepository? = null
     
     // Сохраняем токен в SharedPreferences
     private var githubToken: String = ""
@@ -54,6 +57,9 @@ class SettingsViewModel : ViewModel() {
         
         githubActivityRepository = GithubActivityRepository(context)
         Log.d(TAG, "GithubActivityRepository создан")
+        
+        testRunnerAgentRepository = TestRunnerAgentRepository(context)
+        Log.d(TAG, "TestRunnerAgentRepository создан")
         
         // Сохраняем контекст для использования в других методах
         appContext = context
@@ -208,6 +214,112 @@ class SettingsViewModel : ViewModel() {
     }
     
     /**
+     * Запускает все тесты приложения
+     */
+    fun runAllTests() {
+        Log.d(TAG, "runAllTests вызван")
+        
+        if (testRunnerAgentRepository == null) {
+            Log.e(TAG, "TestRunnerAgentRepository не инициализирован")
+            _uiState.update { it.copy(error = "TestRunnerAgentRepository не инициализирован") }
+            return
+        }
+        
+        Log.d(TAG, "Начинаем запуск всех тестов")
+        _uiState.update { it.copy(isRunningTests = true, error = null, testResult = null) }
+        
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Вызываем агента для запуска тестов...")
+                val result = testRunnerAgentRepository!!.runAllTests()
+                
+                result.fold(
+                    onSuccess = { testResult ->
+                        Log.d(TAG, "Тесты завершены успешно: $testResult")
+                        _uiState.update { 
+                            it.copy(
+                                isRunningTests = false, 
+                                testResult = testResult,
+                                error = null
+                            ) 
+                        }
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Ошибка при запуске тестов", exception)
+                        _uiState.update { 
+                            it.copy(
+                                error = "Ошибка при запуске тестов: ${exception.message}", 
+                                isRunningTests = false
+                            ) 
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Исключение при запуске тестов", e)
+                _uiState.update { 
+                    it.copy(
+                        error = "Исключение при запуске тестов: ${e.message}", 
+                        isRunningTests = false
+                    ) 
+                }
+            }
+        }
+    }
+
+    /**
+     * Запускает конкретный тест
+     */
+    fun runSpecificTest(testClassName: String) {
+        Log.d(TAG, "runSpecificTest вызван для: $testClassName")
+        
+        if (testRunnerAgentRepository == null) {
+            Log.e(TAG, "TestRunnerAgentRepository не инициализирован")
+            _uiState.update { it.copy(error = "TestRunnerAgentRepository не инициализирован") }
+            return
+        }
+        
+        Log.d(TAG, "Начинаем запуск теста: $testClassName")
+        _uiState.update { it.copy(isRunningTests = true, error = null, testResult = null) }
+        
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Вызываем агента для запуска конкретного теста...")
+                val result = testRunnerAgentRepository!!.runSpecificTest(testClassName)
+                
+                result.fold(
+                    onSuccess = { testResult ->
+                        Log.d(TAG, "Тест завершен: $testResult")
+                        _uiState.update { 
+                            it.copy(
+                                isRunningTests = false, 
+                                testResult = testResult,
+                                error = null
+                            ) 
+                        }
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Ошибка при запуске теста", exception)
+                        _uiState.update { 
+                            it.copy(
+                                error = "Ошибка при запуске теста: ${exception.message}", 
+                                isRunningTests = false
+                            ) 
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Исключение при запуске теста", e)
+                _uiState.update { 
+                    it.copy(
+                        error = "Исключение при запуске теста: ${e.message}", 
+                        isRunningTests = false
+                    ) 
+                }
+            }
+        }
+    }
+
+    /**
      * Очищает ошибку
      */
     fun clearError() {
@@ -291,6 +403,8 @@ data class SettingsUiState(
     val activityGraphStep: ActivityGraphStep = ActivityGraphStep.IDLE,
     val activityGraphPath: String? = null,
     val repositoryStats: RepositoryActivityStats? = null,
+    val isRunningTests: Boolean = false,
+    val testResult: TestResult? = null,
     val error: String? = null,
     val githubToken: String = ""
 )
