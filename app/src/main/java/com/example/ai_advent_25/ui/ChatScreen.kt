@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,7 +65,8 @@ fun ChatScreen(
     apiKey: String = "",
     onApiKeySet: (String) -> Unit = {},
     viewModel: ChatViewModel = viewModel(),
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onTestingClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -155,6 +157,21 @@ fun ChatScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = onTestingClick,
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Build,
+                                    contentDescription = "Testing"
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
                             IconButton(
                                 onClick = onSettingsClick,
                                 colors = IconButtonDefaults.iconButtonColors(

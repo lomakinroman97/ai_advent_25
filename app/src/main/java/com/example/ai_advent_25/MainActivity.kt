@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.ai_advent_25.ui.ChatScreen
 import com.example.ai_advent_25.ui.SettingsScreen
+import com.example.ai_advent_25.ui.TestingScreen
 import com.example.ai_advent_25.ui.theme.AiAdvent25Theme
 
 class MainActivity : ComponentActivity() {
@@ -33,12 +34,20 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSettingsClick = { 
                                     currentScreen = "settings" 
+                                },
+                                onTestingClick = {
+                                    currentScreen = "testing"
                                 }
                             )
                         }
                         "settings" -> {
                             SettingsScreen(
                                 apiKey = apiKey,
+                                onBackPressed = { currentScreen = "chat" }
+                            )
+                        }
+                        "testing" -> {
+                            TestingScreen(
                                 onBackPressed = { currentScreen = "chat" }
                             )
                         }
