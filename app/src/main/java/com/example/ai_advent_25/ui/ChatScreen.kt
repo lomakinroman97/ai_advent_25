@@ -7,19 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -59,6 +47,8 @@ import com.example.ai_advent_25.data.GeneratedImage
 import com.example.ai_advent_25.data.QuestionData
 import com.example.ai_advent_25.data.TravelRecommendation
 import java.io.File
+import com.example.ai_advent_25.data.LLMProvider
+import com.example.ai_advent_25.data.AppSettings
 
 @Composable
 fun ChatScreen(
@@ -71,8 +61,9 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     var messageText by remember { mutableStateOf("В путь!") }
-    var showApiKeyDialog by remember { mutableStateOf(apiKey.isBlank()) }
-    var apiKeyText by remember { mutableStateOf("") }
+    var showApiKeyDialog by remember { mutableStateOf(!AppSettings.hasAnyApiKey()) }
+    var yandexApiKeyText by remember { mutableStateOf(AppSettings.getYandexApiKey()) }
+    var deepseekApiKeyText by remember { mutableStateOf(AppSettings.getDeepseekApiKey()) }
 
     // Инициализируем генератор изображений при первом запуске
     val context = LocalContext.current
@@ -81,7 +72,7 @@ fun ChatScreen(
     }
 
     LaunchedEffect(uiState.messages.size) {
-        if (uiState.messages.isNotEmpty()) {
+        if (uiState.messages.size > 0) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
     }
@@ -113,8 +104,8 @@ fun ChatScreen(
                         .background(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
-                                    Color(0xFFFF0000),
-                                    Color(0xFFFF6B35)
+                                    Color(0xFF666666),
+                                    Color(0xFFFFF0E6)
                                 )
                             )
                         )
@@ -128,30 +119,22 @@ fun ChatScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(
-                                        color = Color.White,
-                                        shape = CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Я",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color(0xFFFF0000),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "Yandex GPT-lite",
+                                text = when (uiState.selectedLLM) {
+                                    LLMProvider.YANDEX_GPT -> "Yandex GPT-lite"
+                                    LLMProvider.DEEPSEEK_R1 -> "DeepSeek R1"
+                                },
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = Color.White
                             )
+                            
+                            // Логируем текущую выбранную модель
+                            LaunchedEffect(uiState.selectedLLM) {
+                                android.util.Log.d("Debug77", "ChatScreen: Заголовок обновлен - выбрана модель: ${uiState.selectedLLM}")
+                            }
                         }
                         
                         Row(
@@ -200,6 +183,109 @@ fun ChatScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // LLM Selection
+            if (AppSettings.hasAnyApiKey()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White.copy(alpha = 0.95f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "🤖 Выберите модель ИИ",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color(0xFF333333),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        
+                        // Отладочная информация
+                        Text(
+                            text = "Отладка: Yandex ключ: ${if (AppSettings.getYandexApiKey().isNotBlank()) "есть" else "нет"}, DeepSeek ключ: ${if (AppSettings.getDeepseekApiKey().isNotBlank()) "есть" else "нет"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF666666),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                LLMSelectionButton(
+                                    title = "Yandex GPT",
+                                    subtitle = "Быстрый и надежный",
+                                    isSelected = uiState.selectedLLM == LLMProvider.YANDEX_GPT,
+                                    onClick = { 
+                                        android.util.Log.d("Debug77", "ChatScreen: Пользователь выбрал YandexGPT")
+                                        viewModel.setSelectedLLM(LLMProvider.YANDEX_GPT) 
+                                    },
+                                    enabled = AppSettings.getYandexApiKey().isNotBlank()
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            Box(modifier = Modifier.weight(1f)) {
+                                LLMSelectionButton(
+                                    title = "DeepSeek R1",
+                                    subtitle = "Мощный и точный",
+                                    isSelected = uiState.selectedLLM == LLMProvider.DEEPSEEK_R1,
+                                    onClick = { 
+                                        android.util.Log.d("Debug77", "ChatScreen: Пользователь выбрал DeepSeek R1")
+                                        viewModel.setSelectedLLM(LLMProvider.DEEPSEEK_R1) 
+                                    },
+                                    enabled = AppSettings.getDeepseekApiKey().isNotBlank()
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Отладочная информация - показываем, если нет ключей
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEBEE)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ Отладка: API ключи не найдены",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color(0xFFD32F2F),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = "Yandex ключ: ${if (AppSettings.getYandexApiKey().isNotBlank()) "есть" else "нет"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF666666)
+                        )
+                        Text(
+                            text = "DeepSeek ключ: ${if (AppSettings.getDeepseekApiKey().isNotBlank()) "есть" else "нет"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF666666)
+                        )
                     }
                 }
             }
@@ -629,7 +715,7 @@ fun ChatScreen(
             onDismissRequest = { },
             title = {
                 Text(
-                    text = "Введите API ключ YandexGPT",
+                    text = "Введите API ключи",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFF0000)
@@ -638,37 +724,66 @@ fun ChatScreen(
             text = {
                 Column {
                     Text(
-                        text = "Для работы с YandexGPT необходимо ввести ваш API ключ.",
+                        text = "Для работы с ИИ необходимо ввести API ключи для выбранных моделей.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF666666)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // YandexGPT API Key
                     OutlinedTextField(
-                        value = apiKeyText,
-                        onValueChange = { apiKeyText = it },
-                        label = { Text("API ключ") },
-                        placeholder = { Text("Введите ваш API ключ...") },
+                        value = yandexApiKeyText,
+                        onValueChange = { yandexApiKeyText = it },
+                        label = { Text("API ключ YandexGPT") },
+                        placeholder = { Text("Введите ваш API ключ YandexGPT...") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFFFF0000),
                             unfocusedBorderColor = Color(0xFFCCCCCC),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedTextColor = Color(0xFF333333),
+                            unfocusedTextColor = Color(0xFF333333)
                         )
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // DeepSeek API Key
+                    OutlinedTextField(
+                        value = deepseekApiKeyText,
+                        onValueChange = { deepseekApiKeyText = it },
+                        label = { Text("API ключ DeepSeek") },
+                        placeholder = { Text("Введите ваш API ключ DeepSeek...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4CAF50),
+                            unfocusedBorderColor = Color(0xFFCCCCCC),
+                            focusedTextColor = Color(0xFF333333),
+                            unfocusedTextColor = Color(0xFF333333)
+                        )
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Примечание: Можно ввести только один ключ, если планируете использовать только одну модель.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF999999),
+                        textAlign = TextAlign.Center
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (apiKeyText.isNotBlank()) {
-                            viewModel.setApiKey(apiKeyText)
-                            onApiKeySet(apiKeyText) // Передаем API ключ в MainActivity
+                        if (yandexApiKeyText.isNotBlank() || deepseekApiKeyText.isNotBlank()) {
+                            viewModel.setApiKeys(yandexApiKeyText, deepseekApiKeyText)
+                            onApiKeySet(yandexApiKeyText) // Для обратной совместимости
                             showApiKeyDialog = false
                         }
                     },
-                    enabled = apiKeyText.isNotBlank(),
+                    enabled = yandexApiKeyText.isNotBlank() || deepseekApiKeyText.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFF0000),
                         contentColor = Color.White
@@ -680,6 +795,71 @@ fun ChatScreen(
             containerColor = Color.White,
             shape = RoundedCornerShape(16.dp)
         )
+    }
+}
+
+@Composable
+fun LLMSelectionButton(
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean
+) {
+    Card(
+        modifier = Modifier
+            .clickable(enabled = enabled) { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                if (enabled) Color(0xFFE3F2FD) else Color(0xFFF5F5F5)
+            } else {
+                if (enabled) Color.White else Color(0xFFF5F5F5)
+            }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 8.dp else 2.dp
+        ),
+        shape = RoundedCornerShape(12.dp),
+        border = if (isSelected) {
+            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF2196F3))
+        } else null
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = if (enabled) {
+                    if (isSelected) Color(0xFF1976D2) else Color(0xFF333333)
+                } else Color(0xFF999999),
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) {
+                    if (isSelected) Color(0xFF64B5F6) else Color(0xFF666666)
+                } else Color(0xFFCCCCCC),
+                textAlign = TextAlign.Center
+            )
+            
+            if (!enabled) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Ключ не установлен",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFFF5722),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
 
@@ -883,7 +1063,7 @@ fun CityRecommendationItem(city: CityRecommendation) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                CostItem("💰", "Общая стоимость", city.costs)
+                CostItem("��", "Общая стоимость", city.costs)
             }
             
             Spacer(modifier = Modifier.height(8.dp))

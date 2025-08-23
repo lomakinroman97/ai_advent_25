@@ -229,3 +229,38 @@ data class CityStat(
     val cityName: String,
     val requestCount: Int
 )
+
+// OpenAI-compatible API Models for DeepSeek via OpenRouter
+data class OpenAIChatRequest(
+    val model: String = "deepseek/deepseek-r1:free",
+    val messages: List<OpenAIChatMessage>,
+    val temperature: Double = 0.7,
+    val max_tokens: Int = 1000
+)
+
+data class OpenAIChatMessage(
+    val role: String,
+    val content: String
+)
+
+data class OpenAIChatResponse(
+    val id: String,
+    val choices: List<OpenAIChoice>,
+    val usage: OpenAIUsage
+)
+
+data class OpenAIChoice(
+    val message: OpenAIChatMessage,
+    val finish_reason: String
+)
+
+data class OpenAIUsage(
+    val prompt_tokens: Int,
+    val completion_tokens: Int,
+    val total_tokens: Int
+)
+
+enum class LLMProvider {
+    YANDEX_GPT,
+    DEEPSEEK_R1
+}

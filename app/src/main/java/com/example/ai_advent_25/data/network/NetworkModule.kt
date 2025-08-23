@@ -1,6 +1,7 @@
 package com.example.ai_advent_25.data.network
 
 import com.example.ai_advent_25.data.network.api.ChatApi
+import com.example.ai_advent_25.data.network.api.DeepseekApi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -20,7 +21,7 @@ object NetworkModule : NetworkProvider {
             .build()
     }
     
-    private val retrofit: Retrofit by lazy {
+    private val yandexRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(NetworkConstants.BASE_URL)
             .client(okHttpClient)
@@ -28,7 +29,19 @@ object NetworkModule : NetworkProvider {
             .build()
     }
     
+    private val deepseekRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(NetworkConstants.DEEPSEEK_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+    
     override fun getChatApi(): ChatApi {
-        return retrofit.create(ChatApi::class.java)
+        return yandexRetrofit.create(ChatApi::class.java)
+    }
+    
+    override fun getDeepseekApi(): DeepseekApi {
+        return deepseekRetrofit.create(DeepseekApi::class.java)
     }
 }
