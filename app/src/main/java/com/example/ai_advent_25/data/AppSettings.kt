@@ -9,7 +9,8 @@ import android.util.Log
  */
 object AppSettings {
     private const val PREFS_NAME = "app_settings"
-    private const val KEY_API_KEY = "api_key"
+    private const val KEY_YANDEX_API_KEY = "yandex_api_key"
+    private const val KEY_DEEPSEEK_API_KEY = "deepseek_api_key"
     private const val TAG = "AppSettings"
     
     private var sharedPreferences: SharedPreferences? = null
@@ -23,30 +24,63 @@ object AppSettings {
             Log.d(TAG, "initialize: SharedPreferences уже существует")
         }
         
-        // Проверяем текущий API ключ
-        val currentKey = getApiKey()
-        Log.d(TAG, "initialize: Текущий API ключ: '${if (currentKey.isBlank()) "пустой" else "установлен (длина: ${currentKey.length})"}'")
+        // Проверяем текущие API ключи
+        val yandexKey = getYandexApiKey()
+        val deepseekKey = getDeepseekApiKey()
+        Log.d(TAG, "initialize: Yandex API ключ: '${if (yandexKey.isBlank()) "пустой" else "установлен (длина: ${yandexKey.length})"}'")
+        Log.d(TAG, "initialize: DeepSeek API ключ: '${if (deepseekKey.isBlank()) "пустой" else "установлен (длина: ${deepseekKey.length})"}'")
     }
     
-    fun getApiKey(): String {
-        val key = sharedPreferences?.getString(KEY_API_KEY, "") ?: ""
-        Log.d(TAG, "getApiKey: Возвращаем ключ: '${if (key.isBlank()) "пустой" else "установлен (длина: ${key.length})"}'")
+    fun getYandexApiKey(): String {
+        val key = sharedPreferences?.getString(KEY_YANDEX_API_KEY, "") ?: ""
+        Log.d(TAG, "getYandexApiKey: Возвращаем ключ: '${if (key.isBlank()) "пустой" else "установлен (длина: ${key.length})"}'")
         return key
     }
     
-    fun setApiKey(apiKey: String) {
-        Log.d(TAG, "setApiKey: Сохраняем ключ: '${if (apiKey.isBlank()) "пустой" else "установлен (длина: ${apiKey.length})"}'")
-        sharedPreferences?.edit()?.putString(KEY_API_KEY, apiKey)?.apply()
-        Log.d(TAG, "setApiKey: Ключ сохранен в SharedPreferences")
+    fun setYandexApiKey(apiKey: String) {
+        Log.d(TAG, "setYandexApiKey: Сохраняем ключ: '${if (apiKey.isBlank()) "пустой" else "установлен (длина: ${apiKey.length})"}'")
+        sharedPreferences?.edit()?.putString(KEY_YANDEX_API_KEY, apiKey)?.apply()
+        Log.d(TAG, "setYandexApiKey: Ключ сохранен в SharedPreferences")
         
         // Проверяем, что ключ действительно сохранился
-        val savedKey = getApiKey()
-        Log.d(TAG, "setApiKey: Проверка сохранения: '${if (savedKey.isBlank()) "пустой" else "установлен (длина: ${savedKey.length})"}'")
+        val savedKey = getYandexApiKey()
+        Log.d(TAG, "setYandexApiKey: Проверка сохранения: '${if (savedKey.isBlank()) "пустой" else "установлен (длина: ${savedKey.length})"}'")
+    }
+    
+    fun getDeepseekApiKey(): String {
+        val key = sharedPreferences?.getString(KEY_DEEPSEEK_API_KEY, "") ?: ""
+        Log.d(TAG, "getDeepseekApiKey: Возвращаем ключ: '${if (key.isBlank()) "пустой" else "установлен (длина: ${key.length})"}'")
+        return key
+    }
+    
+    fun setDeepseekApiKey(apiKey: String) {
+        Log.d(TAG, "setDeepseekApiKey: Сохраняем ключ: '${if (apiKey.isBlank()) "пустой" else "установлен (длина: ${apiKey.length})"}'")
+        sharedPreferences?.edit()?.putString(KEY_DEEPSEEK_API_KEY, apiKey)?.apply()
+        Log.d(TAG, "setDeepseekApiKey: Ключ сохранен в SharedPreferences")
+        
+        // Проверяем, что ключ действительно сохранился
+        val savedKey = getDeepseekApiKey()
+        Log.d(TAG, "setDeepseekApiKey: Проверка сохранения: '${if (savedKey.isBlank()) "пустой" else "установлен (длина: ${savedKey.length})"}'")
+    }
+    
+    fun hasAnyApiKey(): Boolean {
+        val hasYandexKey = getYandexApiKey().isNotBlank()
+        val hasDeepseekKey = getDeepseekApiKey().isNotBlank()
+        val hasAnyKey = hasYandexKey || hasDeepseekKey
+        Log.d(TAG, "hasAnyApiKey: Yandex: ${if (hasYandexKey) "да" else "нет"}, DeepSeek: ${if (hasDeepseekKey) "да" else "нет"}, Общий: ${if (hasAnyKey) "да" else "нет"}")
+        return hasAnyKey
+    }
+    
+    // Обратная совместимость
+    fun getApiKey(): String {
+        return getYandexApiKey()
+    }
+    
+    fun setApiKey(apiKey: String) {
+        setYandexApiKey(apiKey)
     }
     
     fun hasApiKey(): Boolean {
-        val hasKey = getApiKey().isNotBlank()
-        Log.d(TAG, "hasApiKey: ${if (hasKey) "да" else "нет"}")
-        return hasKey
+        return hasAnyApiKey()
     }
 }

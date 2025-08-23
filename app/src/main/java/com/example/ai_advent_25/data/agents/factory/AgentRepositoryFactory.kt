@@ -1,6 +1,7 @@
 package com.example.ai_advent_25.data.agents.factory
 
 import android.content.Context
+import com.example.ai_advent_25.data.LLMProvider
 import com.example.ai_advent_25.data.agents.ExpertReviewerAgentRepository
 import com.example.ai_advent_25.data.agents.TravelAssistAgentRepository
 import com.example.ai_advent_25.data.agents.GenerateImageAgentRepository
@@ -19,10 +20,20 @@ object AgentRepositoryFactory {
     }
     
     fun createTravelAssistAgentRepository(
+        yandexApiKey: String,
+        deepseekApiKey: String,
+        selectedLLM: LLMProvider = LLMProvider.YANDEX_GPT,
+        networkProvider: NetworkProvider = NetworkModule
+    ): TravelAssistAgentRepository {
+        return TravelAssistAgentRepository(yandexApiKey, deepseekApiKey, networkProvider, selectedLLM)
+    }
+    
+    // Обратная совместимость
+    fun createTravelAssistAgentRepository(
         apiKey: String,
         networkProvider: NetworkProvider = NetworkModule
     ): TravelAssistAgentRepository {
-        return TravelAssistAgentRepository(apiKey, networkProvider)
+        return TravelAssistAgentRepository(apiKey, "", networkProvider, LLMProvider.YANDEX_GPT)
     }
     
     fun createGenerateImageAgentRepository(

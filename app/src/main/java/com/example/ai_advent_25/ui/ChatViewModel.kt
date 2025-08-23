@@ -39,14 +39,43 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    fun setApiKey(apiKey: String) {
-        // Сохраняем API ключ в AppSettings
-        AppSettings.setApiKey(apiKey)
-        Log.d("ChatViewModel", "API ключ сохранен в AppSettings: '${if (apiKey.isBlank()) "пустой" else "установлен"}'")
+    fun setApiKeys(yandexApiKey: String, deepseekApiKey: String) {
+        // Сохраняем API ключи в AppSettings
+        AppSettings.setYandexApiKey(yandexApiKey)
+        AppSettings.setDeepseekApiKey(deepseekApiKey)
+        Log.d("ChatViewModel", "API ключи сохранены в AppSettings: Yandex: '${if (yandexApiKey.isBlank()) "пустой" else "установлен"}', DeepSeek: '${if (deepseekApiKey.isBlank()) "пустой" else "установлен"}'")
         
-        travelAssistAgentRepository = AgentRepositoryFactory.createTravelAssistAgentRepository(apiKey)
-        expertReviewerAgentRepository = AgentRepositoryFactory.createExpertReviewerAgentRepository(apiKey)
+        // Создаем репозитории с текущим выбранным LLM
+        updateTravelAssistRepository()
+        expertReviewerAgentRepository = AgentRepositoryFactory.createExpertReviewerAgentRepository(yandexApiKey)
         _uiState.update { it.copy(apiKeySet = true) }
+    }
+    
+    fun setSelectedLLM(selectedLLM: LLMProvider) {
+        android.util.Log.d("Debug77", "ChatViewModel: setSelectedLLM вызван с моделью: $selectedLLM")
+        _uiState.update { it.copy(selectedLLM = selectedLLM) }
+        updateTravelAssistRepository()
+    }
+    
+    private fun updateTravelAssistRepository() {
+        val yandexApiKey = AppSettings.getYandexApiKey()
+        val deepseekApiKey = AppSettings.getDeepseekApiKey()
+        val selectedLLM = _uiState.value.selectedLLM
+        
+        android.util.Log.d("Debug77", "ChatViewModel: updateTravelAssistRepository - Yandex ключ: ${if (yandexApiKey.isNotBlank()) "есть" else "нет"}, DeepSeek ключ: ${if (deepseekApiKey.isNotBlank()) "есть" else "нет"}, Выбранная модель: $selectedLLM")
+        
+        travelAssistAgentRepository = AgentRepositoryFactory.createTravelAssistAgentRepository(
+            yandexApiKey, 
+            deepseekApiKey, 
+            selectedLLM
+        )
+        
+        android.util.Log.d("Debug77", "ChatViewModel: TravelAssistAgentRepository создан с моделью: $selectedLLM")
+    }
+
+    // Обратная совместимость
+    fun setApiKey(apiKey: String) {
+        setApiKeys(apiKey, "")
     }
 
         fun initializeImageGenerator(context: Context) {
@@ -78,7 +107,7 @@ class ChatViewModel : ViewModel() {
     fun sendMessage(message: String) {
         if (message.isBlank() || travelAssistAgentRepository == null) {
             if (travelAssistAgentRepository == null) {
-                _uiState.update { it.copy(error = "API ключ не установлен. Пожалуйста, введите ваш API ключ.") }
+                _uiState.update { it.copy(error = "API ключи не установлены. Пожалуйста, введите ваши API ключи.") }
             }
             return
         }
@@ -161,7 +190,8 @@ class ChatViewModel : ViewModel() {
                     )
                 ),
                 expertButtonClicked = false,
-                imageGenerationRequested = false
+                imageGenerationRequested = false,
+                selectedLLM = _uiState.value.selectedLLM
             )
         }
     }
@@ -291,5 +321,6 @@ data class ChatUiState(
     val apiKeySet: Boolean = false,
     val currentAgent: AgentType? = null,  // Текущий активный агент для отображения правильного текста загрузки
     val expertButtonClicked: Boolean = false,  // Флаг, указывающий, что кнопка "Подключить эксперта" была нажата
-    val imageGenerationRequested: Boolean = false  // Флаг, указывающий, что кнопка генерации изображения была нажата
+    val imageGenerationRequested: Boolean = false,  // Флаг, указывающий, что кнопка генерации изображения была нажата
+    val selectedLLM: LLMProvider = LLMProvider.YANDEX_GPT  // Выбранная LLM модель
 )
